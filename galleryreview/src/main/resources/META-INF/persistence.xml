@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<persistence xmlns="http://java.sun.com/xml/ns/persistence"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd">
+<persistence-unit name="grev_localtest"
+		transaction-type="RESOURCE_LOCAL">
+		<description>Persistence Unit for local unit tests</description>
+		<provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+		<properties>
+			<property name="javax.persistence.jdbc.driver" value="org.h2.Driver" />
+			<property name="javax.persistence.jdbc.url" value="jdbc:h2:./db/grev_test" />
+			<property name="javax.persistence.jdbc.user" value="grev_test" />
+			<property name="javax.persistence.jdbc.password" value="grev_test" />
+			<property name="hibernate.dialect" value="org.hibernate.dialect.HSQLDialect" />
+			<property name="hibernate.hbm2ddl.auto" value="create-drop" />
+			<property name="hibernate.show_sql" value="true" />
+		</properties>
+	</persistence-unit>
+	<persistence-unit name="grev_singleuser"
+		transaction-type="RESOURCE_LOCAL">
+		<description>Persistence Unit for local unit tests</description>
+		<!-- <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider> -->
+		<provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+		<properties>
+			<property name="javax.persistence.jdbc.driver" value="org.h2.Driver" />
+			<property name="javax.persistence.jdbc.user" value="grev" />
+			<property name="javax.persistence.jdbc.password" value="grev" />
+			<property name="hibernate.dialect" value="org.hibernate.dialect.HSQLDialect" />
+			<property name="hibernate.show_sql" value="true" />
+			<!-- <property name="eclipselink.ddl-generation" value="drop-and-create-tables" 
+				/> <property name="eclipselink.target-database" value="org.eclipse.persistence.platform.database.H2Platform" 
+				/> <property name="eclipselink.logging.level.sql" value="FINE" /> <property 
+				name="eclipselink.logging.parameters" value="true" /> -->
+		</properties>
+		</persistence-unit>
+</persistence>

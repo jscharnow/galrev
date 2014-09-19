@@ -1,0 +1,18 @@
+- Support of multiple reviews
+- Only one review in menu tree
+- Review contains any number of locations containing any number of files each
+- Locations must not nest
+- Asynchronously read recursively files from all locations
+  * compare read files with files stored in DB and check state
+
+- Progress indicator while reading files
+  
+- Navigation Tree:
+ * Main entries:
+   * Locations
+   * Files to be deleted
+   * Files deleted(tbd)
+   
+   
+   Next:
+   - Read all files 
