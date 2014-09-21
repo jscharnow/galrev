@@ -21,9 +21,10 @@ public class PhysicalFile implements Serializable{
 		return file;
 	}
 
-	public void addChild(File child){
+	public PhysicalFile addChild(File child){
 		PhysicalFile childPf = new PhysicalFile(child);
 		children.add(childPf);
+		return childPf;
 	}
 	
 	public List<PhysicalFile> getChildren() {
