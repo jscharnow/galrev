@@ -1,12 +1,9 @@
 package org.js.galleryreview.ui.i18n;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.text.MessageFormat;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.MissingResourceException;
-import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
 import org.slf4j.Logger;

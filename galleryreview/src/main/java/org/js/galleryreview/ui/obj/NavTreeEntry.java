@@ -1,5 +1,7 @@
 package org.js.galleryreview.ui.obj;
 
+import java.io.File;
+
 import org.js.galleryreview.model.entities.Location;
 import org.js.galleryreview.ui.i18n.Texts;
 
@@ -21,6 +23,17 @@ public class NavTreeEntry {
 		updateIdentification();
 	}
 	
+	public NavTreeEntry(File file) {
+		if (file.isDirectory()){
+			type = NavEntryType.DIRECTORY;
+			directoryPath = file.getAbsolutePath();
+			fileName = file.getName();
+		}else{
+			type = NavEntryType.FILE;
+			fileName = file.getName();
+		}
+	}
+
 	public String getDirectoryPath() {
 		return directoryPath;
 	}

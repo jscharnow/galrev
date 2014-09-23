@@ -12,7 +12,6 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -59,6 +58,9 @@ public class ImageLocatorTest {
 		ImageLocator locator = new ImageLocator(new File(TEST_DIR).getAbsolutePath());
 		final List<PhysicalFile> allNotified=new ArrayList<PhysicalFile>();
 		locator.addFilesParsedListener(delta, (List<PhysicalFile> newFiles) -> {
+			for(PhysicalFile pf: newFiles){
+				System.out.println(pf.getFile().getPath());
+			}
 			allNotified.addAll(newFiles);
 			notificationCount++;
 		});
