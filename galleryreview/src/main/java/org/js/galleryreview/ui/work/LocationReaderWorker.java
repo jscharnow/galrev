@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 
+import javafx.application.Platform;
 import javafx.collections.ObservableList;
 import javafx.scene.control.TreeItem;
 
@@ -14,6 +15,7 @@ import org.js.galleryreview.model.imgaccess.PhysicalFile;
 import org.js.galleryreview.model.provider.ReviewProvider;
 import org.js.galleryreview.ui.obj.NavEntryType;
 import org.js.galleryreview.ui.obj.NavTreeEntry;
+import org.slf4j.LoggerFactory;
 
 public class LocationReaderWorker implements Runnable, IFilesParsedListener{
 
@@ -21,6 +23,7 @@ public class LocationReaderWorker implements Runnable, IFilesParsedListener{
 	private NavTreeEntry baseLocation;
 	private HashMap<String, ImageFile> storedFiles = new HashMap<>();
 	private TreeItem<NavTreeEntry> baseTreeItem;
+	private boolean finished;
 
 	public LocationReaderWorker(TreeItem<NavTreeEntry> baseTreeItem){
 		this.baseTreeItem = baseTreeItem;
@@ -35,10 +38,12 @@ public class LocationReaderWorker implements Runnable, IFilesParsedListener{
 		ImageLocator locator = new ImageLocator(baseLocation.getLocation().getPath());
 		locator.addFilesParsedListener(DELTA_LOCATION, this);
 		locator.readFiles();
+		finished = true;
 	}
 
 	@Override
 	public void newFilesParsed(List<PhysicalFile> newFiles) {
+		Platform.runLater(()->{
 		for (PhysicalFile newPf: newFiles){
 			String path = newPf.getFile().getAbsolutePath();
 			if (!storedFiles.containsKey(path)){
@@ -60,16 +65,31 @@ public class LocationReaderWorker implements Runnable, IFilesParsedListener{
 				String parentPath = newPf.getFile().getParent();
 				TreeItem<NavTreeEntry> parentTi = getParentTi(children,
 						parentPath);
-				parentTi.getChildren().add(ti);
+				if (null != parentTi){
+					parentTi.getChildren().add(ti);
+				}else{
+					LoggerFactory.getLogger(getClass()).error("Parent null");
+				}
 			}
-		}
+		}});
+	}
+	
 
+	public boolean isFinished() {
+		return finished;
 	}
 
+	/**
+	 * Gets the parent treeitem, i.e. the tree item displaying the given path.
+	 *
+	 * @param itemCandidates the item candidates
+	 * @param parentPath the parent path
+	 * @return the parent treeitem
+	 */
 	private TreeItem<NavTreeEntry> getParentTi(
-			ObservableList<TreeItem<NavTreeEntry>> children, String parentPath) {
+			ObservableList<TreeItem<NavTreeEntry>> itemCandidates, String parentPath) {
 		TreeItem<NavTreeEntry> parentTi = null;
-		for (TreeItem<NavTreeEntry> ti: children){
+		for (TreeItem<NavTreeEntry> ti: itemCandidates){
 			NavTreeEntry nte = ti.getValue();
 			if (nte.getType() == NavEntryType.DIRECTORY){
 				String nteDirectory = nte.getDirectoryPath();

@@ -11,10 +11,12 @@ import javax.persistence.Id;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Column;
+import javax.persistence.Transient;
 import javax.persistence.Version;
 
 import java.lang.Override;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 @Entity
@@ -42,6 +44,7 @@ public class Location implements Serializable {
 	@OneToMany
 	@JoinColumn(name = "fk_location")
 	private List<ImageFile> files = new ArrayList<ImageFile>();
+	private String delFlag;
 
 //	@Column(name = "fk_review")
 //	private long fkReview;
@@ -119,6 +122,14 @@ public class Location implements Serializable {
 	public void setPath(String path) {
 		this.path = path;
 	}
+	
+	public String getDelFlag() {
+		return delFlag;
+	}
+	
+	public void setDelFlag(String delFlag) {
+		this.delFlag = delFlag;
+	}
 
 	@Override
 	public String toString() {
@@ -130,5 +141,19 @@ public class Location implements Serializable {
 		if (files != null)
 			result += ", files: " + files;
 		return result;
+	}
+
+	@Transient
+	public boolean isValid(){
+		return null == delFlag;
+	}
+	
+	public void setValid(boolean valid) {
+		if (valid){
+			delFlag=null;
+		}else{
+			delFlag="Deleted at " + new Date().toString();
+		}
+		
 	}
 }

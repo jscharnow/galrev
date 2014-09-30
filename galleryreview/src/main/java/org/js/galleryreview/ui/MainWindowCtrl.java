@@ -1,8 +1,9 @@
 package org.js.galleryreview.ui;
 
 import java.io.File;
-import java.net.URL;
-import java.util.List;
+import java.io.InputStream;
+import java.util.LinkedList;
+import java.util.Queue;
 
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
@@ -26,12 +27,13 @@ import javafx.util.Callback;
 
 import org.js.galleryreview.model.entities.Location;
 import org.js.galleryreview.model.entities.Review;
-import org.js.galleryreview.model.imgaccess.ImageLocator;
-import org.js.galleryreview.model.imgaccess.PhysicalFile;
 import org.js.galleryreview.model.provider.ReviewProvider;
 import org.js.galleryreview.ui.i18n.Texts;
 import org.js.galleryreview.ui.obj.NavEntryType;
 import org.js.galleryreview.ui.obj.NavTreeEntry;
+import org.js.galleryreview.ui.work.LocationReaderWorker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MainWindowCtrl {
 
@@ -62,9 +64,16 @@ public class MainWindowCtrl {
 	private Label lblReviewName;
 	private Review review;
 	private TreeItem<NavTreeEntry> tiLocations;
+	
+	private Queue<LocationReaderWorker> workerQueue = new LinkedList<LocationReaderWorker>();
+	
+	private boolean running = true;
+	private Object workerThreadSyncObject = new Object();
+	
+	private Logger logger = LoggerFactory.getLogger(getClass());
 
-	public static URL getFXML() {
-		return MainWindowCtrl.class.getResource("mainwindow.fxml");
+	public static InputStream getFXMLStream() {
+		return MainWindowCtrl.class.getResourceAsStream("mainwindow.fxml");
 	}
 
 	@FXML
@@ -78,31 +87,46 @@ public class MainWindowCtrl {
 
 		initTree();
 		
-		for (TreeItem<NavTreeEntry> ti: tiLocations.getChildren()){
-			Location loc = ti.getValue().getLocation();
-			// TODO: Add to worker task
-			ImageLocator locator = new ImageLocator(loc.getPath());
-			List<PhysicalFile> files = locator.readFiles();
-			addFilesToTreeItem(ti, files);
-		}
-
+//		for (TreeItem<NavTreeEntry> ti: tiLocations.getChildren()){
+//			Location loc = ti.getValue().getLocation();
+//			// TODO: Add to worker task
+//			ImageLocator locator = new ImageLocator(loc.getPath());
+//			List<PhysicalFile> files = locator.readFiles();
+//			addFilesToTreeItem(ti, files);
+//		}
+		initWorker();
 	}
 
-	private void addFilesToTreeItem(TreeItem<NavTreeEntry> ti,
-			List<PhysicalFile> files) {
-		for (PhysicalFile pf: files){
-			if (pf.isDirectory()){
-				NavTreeEntry nte = new NavTreeEntry(NavEntryType.DIRECTORY);
-				nte.setDirectoryPath(pf.getFilename());
-				TreeItem<NavTreeEntry> childTi = new TreeItem<NavTreeEntry>(nte);
-				ti.getChildren().add(childTi);
-				addFilesToTreeItem(childTi, pf.getChildren());
-			}else{
-				NavTreeEntry nte = new NavTreeEntry(NavEntryType.FILE);
-				nte.setDirectoryPath(pf.getFilename());
-				ti.getChildren().add(new TreeItem<NavTreeEntry>(nte));
+	private void initWorker() {
+		Runnable r = new Runnable(){
+			private LocationReaderWorker currentWork;
+
+			public void run(){
+				while (running){
+					logger.debug("Task thread checking for work. Current: " + currentWork+", queue: " + workerQueue.size());
+					if (null == currentWork || currentWork.isFinished()){
+						LocationReaderWorker work;
+						synchronized (workerThreadSyncObject) {
+							work=workerQueue.poll();
+						}
+						if (null != work){
+							currentWork = work;
+							new Thread(work).start();
+						}
+					}
+					synchronized (workerThreadSyncObject) {
+						try {
+							workerThreadSyncObject.wait(5000);
+						} catch (InterruptedException e) {
+						}						
+					}
+				}
+				synchronized (workerThreadSyncObject) {
+					workerThreadSyncObject.notify();
+				}
 			}
-		}
+		};
+		new Thread(r, "ReadWorker").start();
 	}
 
 	private void initTree() {
@@ -160,21 +184,33 @@ public class MainWindowCtrl {
 			throw new RuntimeException("Cannot start without review");
 		}
 		lblReviewName.setText(review.getName());
-		for (Location l : review.getLocations()) {
-			NavTreeEntry locationEntry = new NavTreeEntry(NavEntryType.LOCATION);
-			locationEntry.setLocation(l);
-		}
-		for (Location loc : review.getLocations()) {
+		for (Location loc : review.getValidLocations()) {
 			addLocationToTree(tiLocations, loc);
 		}
 
 		ContextMenu menu = new ContextMenu();
+		ttvRepository.setContextMenu(menu);
 		MenuItem miNewLocation = new MenuItem(Texts.getText("miAddLocation"));
 		menu.getItems().add(miNewLocation);
-		ttvRepository.setContextMenu(menu);
+		MenuItem miRemoveLocation = new MenuItem(Texts.getText("miRemoveLocation"));
+		menu.getItems().add(miRemoveLocation);
+
 		menu.setOnShowing((WindowEvent wev) -> {
-			miNewLocation.setDisable((tiLocations != ttvRepository
-					.getSelectionModel().getSelectedItem()));
+			TreeItem<NavTreeEntry> selectedItem = ttvRepository
+					.getSelectionModel().getSelectedItem();
+			miNewLocation.setDisable((tiLocations != selectedItem));
+			boolean isLocation = selectedItem != null && selectedItem.getValue().getType() == NavEntryType.LOCATION;
+			miRemoveLocation.setDisable(!isLocation);
+		});
+
+		miRemoveLocation.setOnAction((ActionEvent e) -> {
+			// TODO: confirm dialog
+			TreeItem<NavTreeEntry> selectedItem = ttvRepository
+					.getSelectionModel().getSelectedItem();
+			selectedItem.getParent().getChildren().remove(selectedItem);
+			Location loc = selectedItem.getValue().getLocation();
+			loc.setValid(false);
+			getProvider().mergeLocation(loc);
 		});
 
 		miNewLocation.setOnAction((ActionEvent e) -> {
@@ -189,20 +225,44 @@ public class MainWindowCtrl {
 				getProvider().mergeReview(review);
 				addLocationToTree(tiLocations, loc);
 			}
-
 		});
+		
 	}
 
+	private void addWork(TreeItem<NavTreeEntry> treeItem) {
+		synchronized (workerThreadSyncObject) {
+			workerQueue.add(new LocationReaderWorker(treeItem));
+		}
+	}
+
+	/**
+	 * Adds the location to the navigation tree and and adds location to work queue.
+	 *
+	 * @param tiLocations the ti locations
+	 * @param loc the loc
+	 */
 	private void addLocationToTree(TreeItem<NavTreeEntry> tiLocations,
 			Location loc) {
 		NavTreeEntry nteLoc = new NavTreeEntry(NavEntryType.LOCATION);
 		nteLoc.setLocation(loc);
 		TreeItem<NavTreeEntry> tiLocation = new TreeItem<NavTreeEntry>(nteLoc);
 		tiLocations.getChildren().add(tiLocation);
+		addWork(tiLocation);
 	}
 
 	private ReviewProvider getProvider() {
 		return ReviewProvider.getInstance();
+	}
+
+	public void terminate() {
+		running = false;
+		// TODO: Wait for thread termination
+		try {
+			synchronized (workerThreadSyncObject) {
+				workerThreadSyncObject.wait(5000);
+			}
+		} catch (InterruptedException e) {
+		}
 	}
 
 }

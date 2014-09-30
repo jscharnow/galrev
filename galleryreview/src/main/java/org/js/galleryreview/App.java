@@ -40,16 +40,20 @@ public class App extends Application {
 
 		initApplication();
 
-		Parent root = FXMLLoader.load(MainWindowCtrl.getFXML(), bundle);
+		FXMLLoader loader = new FXMLLoader();
+		loader.setResources(bundle);
+		Parent root = loader.load(MainWindowCtrl.getFXMLStream());
 
 		Scene scene = new Scene(root);
 
-		stage.setTitle("FXML Welcome");
+		stage.setTitle("Gallery Review"); // TODO: Version info
 		stage.setScene(scene);
 		stage.setOnCloseRequest(new EventHandler<WindowEvent>() {
 			
 			@Override
 			public void handle(WindowEvent event) {
+				MainWindowCtrl ctrl = loader.getController();
+				ctrl.terminate();
 				logger.debug("GalleryReview terminated");
 				System.exit(0);
 			}

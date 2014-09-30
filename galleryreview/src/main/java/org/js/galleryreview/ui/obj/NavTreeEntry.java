@@ -4,6 +4,7 @@ import java.io.File;
 
 import org.js.galleryreview.model.entities.Location;
 import org.js.galleryreview.ui.i18n.Texts;
+import org.slf4j.LoggerFactory;
 
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
@@ -19,11 +20,13 @@ public class NavTreeEntry {
 	private Location location;
 	
 	public NavTreeEntry(NavEntryType type) {
+		this();
 		this.type = type;
 		updateIdentification();
 	}
 	
 	public NavTreeEntry(File file) {
+		this();
 		if (file.isDirectory()){
 			type = NavEntryType.DIRECTORY;
 			directoryPath = file.getAbsolutePath();
@@ -32,6 +35,11 @@ public class NavTreeEntry {
 			type = NavEntryType.FILE;
 			fileName = file.getName();
 		}
+		updateIdentification();
+	}
+
+	private NavTreeEntry() {
+		LoggerFactory.getLogger(getClass()).trace("NavTreeEntry created");
 	}
 
 	public String getDirectoryPath() {
@@ -68,6 +76,12 @@ public class NavTreeEntry {
 		return location;
 	}
 	
+	@Override
+	public String toString() {
+		return "NavTreeEntry [type=" + type + ", identification="
+				+ identification + "]";
+	}
+
 	private void updateIdentification() {
 		if (null != type){
 			switch (type){

@@ -11,6 +11,7 @@ import javax.persistence.Id;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Column;
+import javax.persistence.Transient;
 import javax.persistence.Version;
 
 import java.lang.Override;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import javax.persistence.OneToMany;
 
 import java.util.Date;
+import java.util.stream.Collectors;
 
 import javax.persistence.Temporal;
 import javax.persistence.TemporalType;
@@ -70,6 +72,11 @@ public class Review implements Serializable {
 		this.version = version;
 	}
 
+	@Transient
+	public List<Location> getValidLocations(){
+		List<Location> allLocations = new ArrayList<Location>(getLocations());
+		return allLocations.stream().filter(x -> x.isValid()).collect(Collectors.toList());
+	}
 
 	public List<Location> getLocations() {
 		return this.locations;
