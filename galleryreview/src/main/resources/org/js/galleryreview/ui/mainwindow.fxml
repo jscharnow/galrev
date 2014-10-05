@@ -18,8 +18,8 @@
             </ToolBar>
             <TreeTableView fx:id="ttvRepository" prefHeight="200.0" prefWidth="350.0" BorderPane.alignment="CENTER">
               <columns>
-                <TreeTableColumn fx:id="tcNavigation" prefWidth="148.0" text="%tree.naventry" />
-                <TreeTableColumn fx:id="tcNavState" minWidth="2.0" prefWidth="200.0" text="%tree.state" />
+                <TreeTableColumn fx:id="tcNavigation" minWidth="50.0" prefWidth="300.0" text="%tree.naventry" />
+                <TreeTableColumn fx:id="tcNavState" minWidth="2.0" prefWidth="35.0" text="%tree.state" />
               </columns>
             </TreeTableView>
          </children>

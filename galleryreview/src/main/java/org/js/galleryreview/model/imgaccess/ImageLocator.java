@@ -16,7 +16,7 @@ public class ImageLocator {
 	private int filesRead;
 	private int lastNotified = -1;
 	private String rootPath;
-	private HashMap<Integer, List<IFilesParsedListener>> updateListeners = new HashMap<Integer, List<IFilesParsedListener>>();
+	private HashMap<Integer, List<IFilesLocatedListener>> updateListeners = new HashMap<Integer, List<IFilesLocatedListener>>();
 	private List<PhysicalFile> allFilesRead = new ArrayList<PhysicalFile>();
 
 	
@@ -89,7 +89,7 @@ public class ImageLocator {
 
 			//TODO this might not be necessary
 			ArrayList<PhysicalFile> notificationList = new ArrayList<>(subList);
-			for (IFilesParsedListener l: updateListeners.get(aVal)){
+			for (IFilesLocatedListener l: updateListeners.get(aVal)){
 				l.newFilesParsed(notificationList);
 			}
 		}
@@ -105,10 +105,10 @@ public class ImageLocator {
 	 * @param deltaNotifation the numbers of files parsed when the listener is invoked
 	 * @param listener the listener
 	 */
-	public void addFilesParsedListener(int deltaNotifation, IFilesParsedListener listener) {
+	public void addFilesParsedListener(int deltaNotifation, IFilesLocatedListener listener) {
 		Integer key = new Integer(deltaNotifation);
 		if (!updateListeners.containsKey(key)){
-			updateListeners.put(key, new ArrayList<IFilesParsedListener>());
+			updateListeners.put(key, new ArrayList<IFilesLocatedListener>());
 		}
 		updateListeners.get(key).add(listener);
 	}

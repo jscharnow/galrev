@@ -2,6 +2,6 @@ package org.js.galleryreview.model.imgaccess;
 
 import java.util.List;
 
-public interface IFilesParsedListener {
+public interface IFilesLocatedListener {
 	public void newFilesParsed(List<PhysicalFile> newFiles);
 }

@@ -69,6 +69,10 @@ public class NavTreeEntry {
 
 	public void setLocation(Location location) {
 		this.location = location;
+		if (null != location){
+			type=NavEntryType.LOCATION;
+			directoryPath = location.getPath();
+		}
 		updateIdentification();
 	}
 	
@@ -86,7 +90,9 @@ public class NavTreeEntry {
 		if (null != type){
 			switch (type){
 			case DIRECTORY:
-				identification.set(getDirectoryPath());
+				String dir = getDirectoryPath();
+				// only name of directory
+				identification.set(new File(dir).getName()); 
 				break;
 			case FILE:
 				identification.set(getFileName());

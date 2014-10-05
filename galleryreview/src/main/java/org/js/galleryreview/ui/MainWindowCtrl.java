@@ -103,7 +103,7 @@ public class MainWindowCtrl {
 
 			public void run(){
 				while (running){
-					logger.debug("Task thread checking for work. Current: " + currentWork+", queue: " + workerQueue.size());
+					logger.trace("Task thread checking for work. Current: " + currentWork+", queue: " + workerQueue.size());
 					if (null == currentWork || currentWork.isFinished()){
 						LocationReaderWorker work;
 						synchronized (workerThreadSyncObject) {
