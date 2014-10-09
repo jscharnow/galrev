@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.text.*?>
 <?import javafx.scene.image.*?>
 <?import java.lang.*?>
 <?import javafx.scene.control.*?>
@@ -31,12 +32,25 @@
             <ToolBar nodeOrientation="RIGHT_TO_LEFT" prefHeight="40.0" prefWidth="200.0">
               <items>
                   <Button fx:id="btnNext" mnemonicParsing="false" text="&gt;" />
-                <Button fx:id="btnConfirm" mnemonicParsing="false" text="conf" />
-                  <Button fx:id="btnDel" mnemonicParsing="false" text="del" />
+                <Button mnemonicParsing="false" onAction="#confirmInvoked" text="conf" />
+                  <Button mnemonicParsing="false" onAction="#deleteInvoked" text="del" />
                   <Button fx:id="btnPrev" mnemonicParsing="false" text="&lt;" />
               </items>
             </ToolBar>
-            <ImageView fx:id="ivMainImage" fitHeight="150.0" fitWidth="200.0" pickOnBounds="true" preserveRatio="true" BorderPane.alignment="CENTER" />
+            <GridPane>
+              <columnConstraints>
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+              </columnConstraints>
+              <rowConstraints>
+                <RowConstraints maxHeight="-Infinity" minHeight="-Infinity" prefHeight="30.0" vgrow="SOMETIMES" />
+              </rowConstraints>
+               <children>
+                  <Text fx:id="txtCurrentFileName" strokeType="OUTSIDE" strokeWidth="0.0" GridPane.columnIndex="1" />
+                  <Label text="%imgview.filename" />
+               </children>
+            </GridPane>
+            <ImageView fx:id="ivMainImage" fitHeight="250.0" fitWidth="400.0" pickOnBounds="true" preserveRatio="true" BorderPane.alignment="CENTER" />
          </children>
       </VBox>
    </center>

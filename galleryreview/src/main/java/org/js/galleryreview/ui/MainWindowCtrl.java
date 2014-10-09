@@ -1,10 +1,15 @@
 package org.js.galleryreview.ui;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.util.LinkedList;
 import java.util.Queue;
 
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -20,7 +25,10 @@ import javafx.scene.control.TreeTableColumn.CellDataFeatures;
 import javafx.scene.control.TreeTableView;
 import javafx.scene.control.cell.TextFieldTreeTableCell;
 import javafx.scene.control.cell.TreeItemPropertyValueFactory;
+import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
 import javafx.stage.WindowEvent;
 import javafx.util.Callback;
@@ -37,8 +45,15 @@ import org.slf4j.LoggerFactory;
 
 public class MainWindowCtrl {
 
+	public static InputStream getFXMLStream() {
+		return MainWindowCtrl.class.getResourceAsStream("mainwindow.fxml");
+	}
+	
+	private static final int WAIT_TIME = 5000;
+
 	@FXML
 	private TreeTableView<NavTreeEntry> ttvRepository;
+
 	@FXML
 	private TreeTableColumn<NavTreeEntry, String> tcNavigation;
 
@@ -59,21 +74,76 @@ public class MainWindowCtrl {
 
 	@FXML
 	private Button btnDel;
-
+	
+	@FXML
+	private Text txtCurrentFileName;
 	@FXML
 	private Label lblReviewName;
-	private Review review;
+	
 	private TreeItem<NavTreeEntry> tiLocations;
 	
 	private Queue<LocationReaderWorker> workerQueue = new LinkedList<LocationReaderWorker>();
-	
 	private boolean running = true;
+	
 	private Object workerThreadSyncObject = new Object();
+
+	private Review review;
+	private ObjectProperty<TreeItem<NavTreeEntry>> displayedEntryProperty = new SimpleObjectProperty<TreeItem<NavTreeEntry>>();
 	
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
-	public static InputStream getFXMLStream() {
-		return MainWindowCtrl.class.getResourceAsStream("mainwindow.fxml");
+	/**
+	 * Adds the location to the navigation tree and and adds location to work queue.
+	 *
+	 * @param tiLocations the ti locations
+	 * @param loc the loc
+	 */
+	private void addLocationToTree(TreeItem<NavTreeEntry> tiLocations,
+			Location loc) {
+		NavTreeEntry nteLoc = new NavTreeEntry(NavEntryType.LOCATION);
+		nteLoc.setLocation(loc);
+		TreeItem<NavTreeEntry> tiLocation = new TreeItem<NavTreeEntry>(nteLoc);
+		tiLocations.getChildren().add(tiLocation);
+		addWork(tiLocation);
+	}
+	
+    private void addWork(TreeItem<NavTreeEntry> treeItem) {
+		synchronized (workerThreadSyncObject) {
+			workerQueue.add(new LocationReaderWorker(treeItem));
+		}
+	}
+
+    @FXML
+    void confirmInvoked(ActionEvent event) {
+
+    }
+
+	@FXML
+    void deleteInvoked(ActionEvent event) {
+		if (displayedEntryProperty.get() != null){
+			removeEntry(tiLocations, displayedEntryProperty.get());
+			// TODO: Set del flag and add to deleted entries
+			displayedEntryProperty.set(null);
+		}
+    }
+
+	private void removeEntry(TreeItem<NavTreeEntry> root, TreeItem<NavTreeEntry> toDelete) {
+		if (root.getChildren().contains(toDelete)){
+			root.getChildren().remove(toDelete);
+		}else{
+			for (TreeItem<NavTreeEntry> entry: root.getChildren()){
+				removeEntry(entry, toDelete);
+			}
+		}
+	}
+
+	private Image getBrokenImage() {
+		// TODO: Get Broken image from resources
+		return null;
+	}
+
+	private ReviewProvider getProvider() {
+		return ReviewProvider.getInstance();
 	}
 
 	@FXML
@@ -87,46 +157,28 @@ public class MainWindowCtrl {
 
 		initTree();
 		
-//		for (TreeItem<NavTreeEntry> ti: tiLocations.getChildren()){
-//			Location loc = ti.getValue().getLocation();
-//			// TODO: Add to worker task
-//			ImageLocator locator = new ImageLocator(loc.getPath());
-//			List<PhysicalFile> files = locator.readFiles();
-//			addFilesToTreeItem(ti, files);
-//		}
 		initWorker();
-	}
-
-	private void initWorker() {
-		Runnable r = new Runnable(){
-			private LocationReaderWorker currentWork;
-
-			public void run(){
-				while (running){
-					logger.trace("Task thread checking for work. Current: " + currentWork+", queue: " + workerQueue.size());
-					if (null == currentWork || currentWork.isFinished()){
-						LocationReaderWorker work;
-						synchronized (workerThreadSyncObject) {
-							work=workerQueue.poll();
-						}
-						if (null != work){
-							currentWork = work;
-							new Thread(work).start();
-						}
-					}
-					synchronized (workerThreadSyncObject) {
-						try {
-							workerThreadSyncObject.wait(5000);
-						} catch (InterruptedException e) {
-						}						
-					}
-				}
-				synchronized (workerThreadSyncObject) {
-					workerThreadSyncObject.notify();
-				}
+		
+		ttvRepository.getParent().addEventHandler(KeyEvent.KEY_RELEASED, event -> {
+			switch( event.getCode()){
+			case DELETE:
+				deleteInvoked(null);
+			default:
+				break;
 			}
-		};
-		new Thread(r, "ReadWorker").start();
+		});
+
+		displayedEntryProperty.addListener((ChangeListener<TreeItem<NavTreeEntry>>) (
+				observable, oldValue, newValue) -> {
+			if (null == newValue) {
+				setImage(null);
+			} else {
+				NavTreeEntry nte = newValue.getValue();
+				File file = new File(nte.getDirectoryPath(), nte
+						.getFileName());
+				setImage(file);
+			}
+		});
 	}
 
 	private void initTree() {
@@ -188,6 +240,17 @@ public class MainWindowCtrl {
 			addLocationToTree(tiLocations, loc);
 		}
 
+		ttvRepository
+				.getSelectionModel()
+				.selectedItemProperty()
+				.addListener(
+						(ChangeListener<TreeItem<NavTreeEntry>>) (observable,
+								oldValue, newValue) -> {
+									if (null != newValue){
+										nteSelected(newValue);
+									}
+						});
+		
 		ContextMenu menu = new ContextMenu();
 		ttvRepository.setContextMenu(menu);
 		MenuItem miNewLocation = new MenuItem(Texts.getText("miAddLocation"));
@@ -229,36 +292,76 @@ public class MainWindowCtrl {
 		
 	}
 
-	private void addWork(TreeItem<NavTreeEntry> treeItem) {
-		synchronized (workerThreadSyncObject) {
-			workerQueue.add(new LocationReaderWorker(treeItem));
+	private void initWorker() {
+		Runnable r = new Runnable(){
+			private LocationReaderWorker currentWork;
+
+			public void run(){
+				while (running){
+					logger.trace("Task thread checking for work. Current: " + currentWork+", queue: " + workerQueue.size());
+					if (null == currentWork || currentWork.isFinished()){
+						LocationReaderWorker work;
+						synchronized (workerThreadSyncObject) {
+							work=workerQueue.poll();
+						}
+						if (null != work){
+							currentWork = work;
+							new Thread(work).start();
+						}
+					}
+					synchronized (workerThreadSyncObject) {
+						try {
+							workerThreadSyncObject.wait(WAIT_TIME);
+						} catch (InterruptedException e) {
+						}						
+					}
+				}
+				synchronized (workerThreadSyncObject) {
+					workerThreadSyncObject.notify();
+				}
+			}
+		};
+		new Thread(r, "ReadWorker").start();
+	}
+
+	private void nteSelected(TreeItem<NavTreeEntry> newValue) {
+		logger.debug("NTE selected: " + newValue);
+		if (newValue != null && newValue.getValue() != null && newValue.getValue().getType() == NavEntryType.FILE){
+			displayedEntryProperty.set(newValue);
+		}else{
+			displayedEntryProperty.set(null);
 		}
 	}
 
-	/**
-	 * Adds the location to the navigation tree and and adds location to work queue.
-	 *
-	 * @param tiLocations the ti locations
-	 * @param loc the loc
-	 */
-	private void addLocationToTree(TreeItem<NavTreeEntry> tiLocations,
-			Location loc) {
-		NavTreeEntry nteLoc = new NavTreeEntry(NavEntryType.LOCATION);
-		nteLoc.setLocation(loc);
-		TreeItem<NavTreeEntry> tiLocation = new TreeItem<NavTreeEntry>(nteLoc);
-		tiLocations.getChildren().add(tiLocation);
-		addWork(tiLocation);
-	}
-
-	private ReviewProvider getProvider() {
-		return ReviewProvider.getInstance();
+	private void setImage(File file) {
+		String name="";
+		Image image = null;
+		if (null != file){
+			name = file.getName();
+			if (file.exists()){
+				try {
+					image = new Image(new FileInputStream(file));
+					ivMainImage.setImage(image);
+					double height;
+					double ratio=image.getWidth()/image.getHeight();
+					height = ivMainImage.getFitWidth() * ratio;
+					ivMainImage.setFitHeight(height);
+				} catch (FileNotFoundException e) {
+					image = getBrokenImage();
+				}
+			}else{
+				image = getBrokenImage();
+			}
+		}
+		ivMainImage.setImage(image);
+		txtCurrentFileName.setText(name);
 	}
 
 	public void terminate() {
 		running = false;
-		// TODO: Wait for thread termination
 		try {
 			synchronized (workerThreadSyncObject) {
+				workerThreadSyncObject.notify();
 				workerThreadSyncObject.wait(5000);
 			}
 		} catch (InterruptedException e) {

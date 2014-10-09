@@ -34,6 +34,7 @@ public class NavTreeEntry {
 		}else{
 			type = NavEntryType.FILE;
 			fileName = file.getName();
+			directoryPath = file.getParent();
 		}
 		updateIdentification();
 	}

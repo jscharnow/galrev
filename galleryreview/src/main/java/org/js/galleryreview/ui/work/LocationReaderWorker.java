@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * The Class LocationReaderWorker is the interface between the file location and
- * the UI renderering the parse results. The class implements
+ * the UI rendering the parse results. The class implements
  * {@link IFilesLocatedListener} to be provided to an {@link ImageLocator}.
  * Whenever (a subset of) files are located, they are added to the
  * {@link TreeTableView} below the {@link TreeItem} representing the root
@@ -57,6 +57,7 @@ public class LocationReaderWorker implements Runnable, IFilesLocatedListener {
 
 	@Override
 	public void newFilesParsed(List<PhysicalFile> newFiles) {
+		logger.debug("New files parsed: " + newFiles.size());
 		// run in UI thread
 		Platform.runLater(() -> {
 			// try to add each file. The list of new files is contains also
