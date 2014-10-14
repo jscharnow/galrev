@@ -33,6 +33,7 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.WindowEvent;
 import javafx.util.Callback;
 
+import org.js.galleryreview.model.entities.ImageFile;
 import org.js.galleryreview.model.entities.Location;
 import org.js.galleryreview.model.entities.Review;
 import org.js.galleryreview.model.provider.ReviewProvider;
@@ -92,6 +93,8 @@ public class MainWindowCtrl {
 	
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
+	private TreeItem<NavTreeEntry> tiToDelete;
+
 	/**
 	 * Adds the location to the navigation tree and and adds location to work queue.
 	 *
@@ -109,7 +112,7 @@ public class MainWindowCtrl {
 	
     private void addWork(TreeItem<NavTreeEntry> treeItem) {
 		synchronized (workerThreadSyncObject) {
-			workerQueue.add(new LocationReaderWorker(treeItem));
+			workerQueue.add(new LocationReaderWorker(treeItem, tiToDelete));
 		}
 	}
 
@@ -120,13 +123,26 @@ public class MainWindowCtrl {
 
 	@FXML
     void deleteInvoked(ActionEvent event) {
-		if (displayedEntryProperty.get() != null){
-			removeEntry(tiLocations, displayedEntryProperty.get());
-			// TODO: Set del flag and add to deleted entries
+		TreeItem<NavTreeEntry> toDelete = displayedEntryProperty.get();
+		if (toDelete != null){
+			removeEntry(tiLocations, toDelete);
+			NavTreeEntry nteToDelete = toDelete.getValue();
+			ImageFile iFile = nteToDelete.getImageFile();
+			if (null != iFile){
+				iFile.setFlaggedToDelete(true);
+				getProvider().mergeFile(iFile);
+			}
 			displayedEntryProperty.set(null);
+			addToDeleteFiles(nteToDelete);
 		}
     }
 
+	/**
+	 * Removes an entry from the child list of the given root list (recursively if needed).
+	 *
+	 * @param root the root
+	 * @param toDelete the to delete
+	 */
 	private void removeEntry(TreeItem<NavTreeEntry> root, TreeItem<NavTreeEntry> toDelete) {
 		if (root.getChildren().contains(toDelete)){
 			root.getChildren().remove(toDelete);
@@ -135,6 +151,16 @@ public class MainWindowCtrl {
 				removeEntry(entry, toDelete);
 			}
 		}
+	}
+	
+	/**
+	 * Adds the given entry to the "delete files" navigation tree entry.
+	 *
+	 * @param nteToDelete the nte to delete
+	 */
+	private void addToDeleteFiles(NavTreeEntry nteToDelete) {
+		TreeItem<NavTreeEntry> ti = new TreeItem<NavTreeEntry>(nteToDelete);
+		tiToDelete.getChildren().add(ti);
 	}
 
 	private Image getBrokenImage() {
@@ -186,7 +212,7 @@ public class MainWindowCtrl {
 				new NavTreeEntry(NavEntryType.ROOT_REVIEW));
 		tiLocations = new TreeItem<NavTreeEntry>(
 				new NavTreeEntry(NavEntryType.LOCATIONS));
-		TreeItem<NavTreeEntry> tiToDelete = new TreeItem<NavTreeEntry>(
+		tiToDelete = new TreeItem<NavTreeEntry>(
 				new NavTreeEntry(NavEntryType.TO_DELETE));
 
 		Callback<CellDataFeatures<NavTreeEntry, String>, ObservableValue<String>> fct = new TreeItemPropertyValueFactory<NavTreeEntry, String>(

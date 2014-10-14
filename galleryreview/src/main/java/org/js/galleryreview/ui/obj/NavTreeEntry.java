@@ -2,6 +2,7 @@ package org.js.galleryreview.ui.obj;
 
 import java.io.File;
 
+import org.js.galleryreview.model.entities.ImageFile;
 import org.js.galleryreview.model.entities.Location;
 import org.js.galleryreview.ui.i18n.Texts;
 import org.slf4j.LoggerFactory;
@@ -18,6 +19,8 @@ public class NavTreeEntry {
 	private StringProperty identification = new SimpleStringProperty();
 
 	private Location location;
+
+	private ImageFile imageFile;
 	
 	public NavTreeEntry(NavEntryType type) {
 		this();
@@ -25,8 +28,9 @@ public class NavTreeEntry {
 		updateIdentification();
 	}
 	
-	public NavTreeEntry(File file) {
+	public NavTreeEntry(File file, ImageFile imageFile) {
 		this();
+		this.imageFile = imageFile;
 		if (file.isDirectory()){
 			type = NavEntryType.DIRECTORY;
 			directoryPath = file.getAbsolutePath();
@@ -79,6 +83,10 @@ public class NavTreeEntry {
 	
 	public Location getLocation() {
 		return location;
+	}
+	
+	public ImageFile getImageFile() {
+		return imageFile;
 	}
 	
 	@Override

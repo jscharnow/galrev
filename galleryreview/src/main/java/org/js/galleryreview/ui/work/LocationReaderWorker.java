@@ -37,9 +37,11 @@ public class LocationReaderWorker implements Runnable, IFilesLocatedListener {
 	private TreeItem<NavTreeEntry> baseTreeItem;
 	private boolean finished;
 	private Logger logger = LoggerFactory.getLogger(getClass());
+	private TreeItem<NavTreeEntry> toDeleteBaseTreeItem;
 
-	public LocationReaderWorker(TreeItem<NavTreeEntry> baseTreeItem) {
+	public LocationReaderWorker(TreeItem<NavTreeEntry> baseTreeItem, TreeItem<NavTreeEntry> toDeleteBaseTreeItem) {
 		this.baseTreeItem = baseTreeItem;
+		this.toDeleteBaseTreeItem = toDeleteBaseTreeItem;
 		this.baseLocation = baseTreeItem.getValue();
 		for (ImageFile file : baseLocation.getLocation().getFiles()) {
 			storedFiles.put(file.getPath(), file);
@@ -79,23 +81,30 @@ public class LocationReaderWorker implements Runnable, IFilesLocatedListener {
 				File file = newPf.getFile();
 				ObservableList<TreeItem<NavTreeEntry>> children = baseTreeItem
 						.getChildren();
-				NavTreeEntry nte = new NavTreeEntry(file);
+				ImageFile imageFile = storedFiles.get(path);
+				NavTreeEntry nte = new NavTreeEntry(file, imageFile);
 				TreeItem<NavTreeEntry> ti = new TreeItem<NavTreeEntry>(nte);
-				String fileParentPath = file.getParent();
-				logger.debug("Compare root path " + baseLocation.getDirectoryPath() +" with file directory " + fileParentPath) ;
-				if (fileParentPath.equals(baseLocation.getDirectoryPath())) {
-					// item is located directly below root
-					addItemToChildList(children, ti);
+				if (imageFile.isFlaggedToDelete()){
+					toDeleteBaseTreeItem.getChildren().add(ti);
 				} else {
-					// item in subdirectory -> locate parent
-					String parentPath = newPf.getFile().getParent();
-					TreeItem<NavTreeEntry> parentTi = getParentTi(children,
-							parentPath);
-					if (null != parentTi) {
-						addItemToChildList(parentTi.getChildren(),ti);
+					String fileParentPath = file.getParent();
+					logger.debug("Compare root path "
+							+ baseLocation.getDirectoryPath()
+							+ " with file directory " + fileParentPath);
+					if (fileParentPath.equals(baseLocation.getDirectoryPath())) {
+						// item is located directly below root
+						addItemToChildList(children, ti);
 					} else {
-						LoggerFactory.getLogger(getClass())
-								.error("Parent null");
+						// item in subdirectory -> locate parent
+						String parentPath = newPf.getFile().getParent();
+						TreeItem<NavTreeEntry> parentTi = getParentTi(children,
+								parentPath);
+						if (null != parentTi) {
+							addItemToChildList(parentTi.getChildren(), ti);
+						} else {
+							LoggerFactory.getLogger(getClass()).error(
+									"Parent null");
+						}
 					}
 				}
 			}
