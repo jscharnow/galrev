@@ -15,4 +15,5 @@
    
    
    Next:
-   - Read all files 
+   - Context menu to delete and restore entries
+   - Tooltip: Complete path for file tree items#
