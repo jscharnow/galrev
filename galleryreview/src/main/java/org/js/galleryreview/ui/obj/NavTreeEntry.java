@@ -89,6 +89,10 @@ public class NavTreeEntry {
 		return imageFile;
 	}
 	
+	public void setImageFile(ImageFile imageFile) {
+		this.imageFile = imageFile;
+	}
+	
 	@Override
 	public String toString() {
 		return "NavTreeEntry [type=" + type + ", identification="

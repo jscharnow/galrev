@@ -36,6 +36,7 @@ import javafx.util.Callback;
 import org.js.galleryreview.model.entities.ImageFile;
 import org.js.galleryreview.model.entities.Location;
 import org.js.galleryreview.model.entities.Review;
+import org.js.galleryreview.model.provider.IReviewProvider;
 import org.js.galleryreview.model.provider.ReviewProvider;
 import org.js.galleryreview.ui.i18n.Texts;
 import org.js.galleryreview.ui.obj.NavEntryType;
@@ -124,18 +125,36 @@ public class MainWindowCtrl {
 	@FXML
     void deleteInvoked(ActionEvent event) {
 		TreeItem<NavTreeEntry> toDelete = displayedEntryProperty.get();
-		if (toDelete != null){
+		deleteFileByTreeItem(toDelete);
+    }
+
+	private void deleteFileByTreeItem(TreeItem<NavTreeEntry> toDelete) {
+		if (toDelete != null) {
 			removeEntry(tiLocations, toDelete);
 			NavTreeEntry nteToDelete = toDelete.getValue();
 			ImageFile iFile = nteToDelete.getImageFile();
-			if (null != iFile){
+			if (null != iFile) {
 				iFile.setFlaggedToDelete(true);
-				getProvider().mergeFile(iFile);
+				nteToDelete.setImageFile(getProvider().mergeFile(iFile));
 			}
 			displayedEntryProperty.set(null);
 			addToDeleteFiles(nteToDelete);
 		}
-    }
+	}
+
+	private void restoreFileByTreeItem(TreeItem<NavTreeEntry> toRestore) {
+		if (toRestore != null) {
+			removeEntry(tiToDelete, toRestore);
+			NavTreeEntry nteToDelete = toRestore.getValue();
+			ImageFile iFile = nteToDelete.getImageFile();
+			if (null != iFile) {
+				iFile.setFlaggedToDelete(false);
+				nteToDelete.setImageFile(getProvider().mergeFile(iFile));
+			}
+			UiHelper.addImageFileToTreeItem(iFile, tiLocations);
+		}
+	}
+
 
 	/**
 	 * Removes an entry from the child list of the given root list (recursively if needed).
@@ -168,7 +187,7 @@ public class MainWindowCtrl {
 		return null;
 	}
 
-	private ReviewProvider getProvider() {
+	private IReviewProvider getProvider() {
 		return ReviewProvider.getInstance();
 	}
 
@@ -280,9 +299,13 @@ public class MainWindowCtrl {
 		ContextMenu menu = new ContextMenu();
 		ttvRepository.setContextMenu(menu);
 		MenuItem miNewLocation = new MenuItem(Texts.getText("miAddLocation"));
-		menu.getItems().add(miNewLocation);
 		MenuItem miRemoveLocation = new MenuItem(Texts.getText("miRemoveLocation"));
+		MenuItem miDeleteFile = new MenuItem(Texts.getText("miDeleteFile"));
+		MenuItem miRestoreFile = new MenuItem(Texts.getText("miKeepFile"));
+		menu.getItems().add(miNewLocation);
 		menu.getItems().add(miRemoveLocation);
+		menu.getItems().add(miDeleteFile);
+		menu.getItems().add(miRestoreFile);
 
 		menu.setOnShowing((WindowEvent wev) -> {
 			TreeItem<NavTreeEntry> selectedItem = ttvRepository
@@ -290,6 +313,11 @@ public class MainWindowCtrl {
 			miNewLocation.setDisable((tiLocations != selectedItem));
 			boolean isLocation = selectedItem != null && selectedItem.getValue().getType() == NavEntryType.LOCATION;
 			miRemoveLocation.setDisable(!isLocation);
+			boolean isMarkedToDeleteFile = selectedItem != null && selectedItem.getValue().getType() == NavEntryType.FILE && selectedItem.getValue().getImageFile().isFlaggedToDelete();
+			boolean isExistingFileFile = selectedItem != null && selectedItem.getValue().getType() == NavEntryType.FILE && !selectedItem.getValue().getImageFile().isFlaggedToDelete();
+			miRestoreFile.setDisable(!isMarkedToDeleteFile);
+			miDeleteFile.setDisable(!isExistingFileFile);
+			
 		});
 
 		miRemoveLocation.setOnAction((ActionEvent e) -> {
@@ -315,6 +343,19 @@ public class MainWindowCtrl {
 				addLocationToTree(tiLocations, loc);
 			}
 		});
+		
+		miDeleteFile.setOnAction((ActionEvent e) -> {
+			TreeItem<NavTreeEntry> selectedItem = ttvRepository
+					.getSelectionModel().getSelectedItem();
+			deleteFileByTreeItem(selectedItem);
+		});
+
+		miRestoreFile.setOnAction((ActionEvent e) -> {
+			TreeItem<NavTreeEntry> selectedItem = ttvRepository
+					.getSelectionModel().getSelectedItem();
+			restoreFileByTreeItem(selectedItem);
+		});
+		
 		
 	}
 
