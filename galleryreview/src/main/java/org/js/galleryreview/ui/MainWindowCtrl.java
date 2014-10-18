@@ -3,7 +3,10 @@ package org.js.galleryreview.ui;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -17,6 +20,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.TextField;
 import javafx.scene.control.Tooltip;
 import javafx.scene.control.TreeItem;
 import javafx.scene.control.TreeTableCell;
@@ -33,9 +37,12 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.WindowEvent;
 import javafx.util.Callback;
 
+import org.apache.sanselan.ImageReadException;
 import org.js.galleryreview.model.entities.ImageFile;
 import org.js.galleryreview.model.entities.Location;
 import org.js.galleryreview.model.entities.Review;
+import org.js.galleryreview.model.imgaccess.ExifExtractor;
+import org.js.galleryreview.model.imgaccess.ImageMetaData;
 import org.js.galleryreview.model.provider.IReviewProvider;
 import org.js.galleryreview.model.provider.ReviewProvider;
 import org.js.galleryreview.ui.i18n.Texts;
@@ -50,7 +57,7 @@ public class MainWindowCtrl {
 	public static InputStream getFXMLStream() {
 		return MainWindowCtrl.class.getResourceAsStream("mainwindow.fxml");
 	}
-	
+
 	private static final int WAIT_TIME = 5000;
 
 	@FXML
@@ -76,31 +83,46 @@ public class MainWindowCtrl {
 
 	@FXML
 	private Button btnDel;
-	
+
 	@FXML
 	private Text txtCurrentFileName;
 	@FXML
 	private Label lblReviewName;
 	
+	@FXML
+	private TextField tfImageDate;
+
+	@FXML
+	private TextField tfImageSize;
+
+	@FXML
+	private TextField tfImageWidth;
+
+	@FXML
+	private TextField tfImageHeight;
+
 	private TreeItem<NavTreeEntry> tiLocations;
-	
+
 	private Queue<LocationReaderWorker> workerQueue = new LinkedList<LocationReaderWorker>();
 	private boolean running = true;
-	
+
 	private Object workerThreadSyncObject = new Object();
 
 	private Review review;
 	private ObjectProperty<TreeItem<NavTreeEntry>> displayedEntryProperty = new SimpleObjectProperty<TreeItem<NavTreeEntry>>();
-	
+
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
 	private TreeItem<NavTreeEntry> tiToDelete;
 
 	/**
-	 * Adds the location to the navigation tree and and adds location to work queue.
+	 * Adds the location to the navigation tree and and adds location to work
+	 * queue.
 	 *
-	 * @param tiLocations the ti locations
-	 * @param loc the loc
+	 * @param tiLocations
+	 *            the ti locations
+	 * @param loc
+	 *            the loc
 	 */
 	private void addLocationToTree(TreeItem<NavTreeEntry> tiLocations,
 			Location loc) {
@@ -110,23 +132,23 @@ public class MainWindowCtrl {
 		tiLocations.getChildren().add(tiLocation);
 		addWork(tiLocation);
 	}
-	
-    private void addWork(TreeItem<NavTreeEntry> treeItem) {
+
+	private void addWork(TreeItem<NavTreeEntry> treeItem) {
 		synchronized (workerThreadSyncObject) {
 			workerQueue.add(new LocationReaderWorker(treeItem, tiToDelete));
 		}
 	}
 
-    @FXML
-    void confirmInvoked(ActionEvent event) {
+	@FXML
+	void confirmInvoked(ActionEvent event) {
 
-    }
+	}
 
 	@FXML
-    void deleteInvoked(ActionEvent event) {
+	void deleteInvoked(ActionEvent event) {
 		TreeItem<NavTreeEntry> toDelete = displayedEntryProperty.get();
 		deleteFileByTreeItem(toDelete);
-    }
+	}
 
 	private void deleteFileByTreeItem(TreeItem<NavTreeEntry> toDelete) {
 		if (toDelete != null) {
@@ -155,27 +177,31 @@ public class MainWindowCtrl {
 		}
 	}
 
-
 	/**
-	 * Removes an entry from the child list of the given root list (recursively if needed).
+	 * Removes an entry from the child list of the given root list (recursively
+	 * if needed).
 	 *
-	 * @param root the root
-	 * @param toDelete the to delete
+	 * @param root
+	 *            the root
+	 * @param toDelete
+	 *            the to delete
 	 */
-	private void removeEntry(TreeItem<NavTreeEntry> root, TreeItem<NavTreeEntry> toDelete) {
-		if (root.getChildren().contains(toDelete)){
+	private void removeEntry(TreeItem<NavTreeEntry> root,
+			TreeItem<NavTreeEntry> toDelete) {
+		if (root.getChildren().contains(toDelete)) {
 			root.getChildren().remove(toDelete);
-		}else{
-			for (TreeItem<NavTreeEntry> entry: root.getChildren()){
+		} else {
+			for (TreeItem<NavTreeEntry> entry : root.getChildren()) {
 				removeEntry(entry, toDelete);
 			}
 		}
 	}
-	
+
 	/**
 	 * Adds the given entry to the "delete files" navigation tree entry.
 	 *
-	 * @param nteToDelete the nte to delete
+	 * @param nteToDelete
+	 *            the nte to delete
 	 */
 	private void addToDeleteFiles(NavTreeEntry nteToDelete) {
 		TreeItem<NavTreeEntry> ti = new TreeItem<NavTreeEntry>(nteToDelete);
@@ -201,38 +227,40 @@ public class MainWindowCtrl {
 		assert btnDel != null : "fx:id=\"btnDel\" was not injected: check your FXML file 'mainwindow.fxml'.";
 
 		initTree();
-		
-		initWorker();
-		
-		ttvRepository.getParent().addEventHandler(KeyEvent.KEY_RELEASED, event -> {
-			switch( event.getCode()){
-			case DELETE:
-				deleteInvoked(null);
-			default:
-				break;
-			}
-		});
 
-		displayedEntryProperty.addListener((ChangeListener<TreeItem<NavTreeEntry>>) (
-				observable, oldValue, newValue) -> {
-			if (null == newValue) {
-				setImage(null);
-			} else {
-				NavTreeEntry nte = newValue.getValue();
-				File file = new File(nte.getDirectoryPath(), nte
-						.getFileName());
-				setImage(file);
-			}
-		});
+		initWorker();
+
+		ttvRepository.getParent().addEventHandler(KeyEvent.KEY_RELEASED,
+				event -> {
+					switch (event.getCode()) {
+					case DELETE:
+						deleteInvoked(null);
+					default:
+						break;
+					}
+				});
+
+		displayedEntryProperty
+				.addListener((ChangeListener<TreeItem<NavTreeEntry>>) (
+						observable, oldValue, newValue) -> {
+					if (null == newValue) {
+						setImage(null);
+					} else {
+						NavTreeEntry nte = newValue.getValue();
+						File file = new File(nte.getDirectoryPath(), nte
+								.getFileName());
+						setImage(file);
+					}
+				});
 	}
 
 	private void initTree() {
 		TreeItem<NavTreeEntry> tiReview = new TreeItem<NavTreeEntry>(
 				new NavTreeEntry(NavEntryType.ROOT_REVIEW));
-		tiLocations = new TreeItem<NavTreeEntry>(
-				new NavTreeEntry(NavEntryType.LOCATIONS));
-		tiToDelete = new TreeItem<NavTreeEntry>(
-				new NavTreeEntry(NavEntryType.TO_DELETE));
+		tiLocations = new TreeItem<NavTreeEntry>(new NavTreeEntry(
+				NavEntryType.LOCATIONS));
+		tiToDelete = new TreeItem<NavTreeEntry>(new NavTreeEntry(
+				NavEntryType.TO_DELETE));
 
 		Callback<CellDataFeatures<NavTreeEntry, String>, ObservableValue<String>> fct = new TreeItemPropertyValueFactory<NavTreeEntry, String>(
 				"identification");
@@ -244,20 +272,38 @@ public class MainWindowCtrl {
 			@Override
 			public TreeTableCell<NavTreeEntry, String> call(
 					TreeTableColumn<NavTreeEntry, String> param) {
-				TreeTableCell<NavTreeEntry, String> cell = new TextFieldTreeTableCell<NavTreeEntry, String>(){
+				TreeTableCell<NavTreeEntry, String> cell = new TextFieldTreeTableCell<NavTreeEntry, String>() {
 					@Override
 					public void updateItem(String item, boolean empty) {
 						super.updateItem(item, empty);
 						NavTreeEntry navEntry = getTreeTableRow().getItem();
 						Tooltip ttip = null;
-						if (null != navEntry){
-							if (NavEntryType.LOCATION == navEntry.getType()){
-								ttip=getTooltip();
-								if (null == ttip){
+						if (null != navEntry) {
+							String ttipText = null;
+							switch (navEntry.getType()) {
+							case LOCATION:
+								ttipText = navEntry.getLocation().getPath();
+								break;
+							case DIRECTORY:
+								ttipText = navEntry.getDirectoryPath();
+								break;
+							case FILE:
+								ttipText = navEntry.getImageFile().getPath();
+								break;
+							case LOCATIONS:
+							case ROOT_REVIEW:
+							case TO_DELETE:
+								break;
+							default:
+								break;
+							}
+							if (null != ttipText) {
+								ttip = getTooltip();
+								if (null == ttip) {
 									ttip = new Tooltip();
 									setTooltip(ttip);
 								}
-								ttip.setText(navEntry.getLocation().getPath());
+								ttip.setText(ttipText);
 							}
 						}
 						setTooltip(ttip);
@@ -291,15 +337,16 @@ public class MainWindowCtrl {
 				.addListener(
 						(ChangeListener<TreeItem<NavTreeEntry>>) (observable,
 								oldValue, newValue) -> {
-									if (null != newValue){
-										nteSelected(newValue);
-									}
+							if (null != newValue) {
+								nteSelected(newValue);
+							}
 						});
-		
+
 		ContextMenu menu = new ContextMenu();
 		ttvRepository.setContextMenu(menu);
 		MenuItem miNewLocation = new MenuItem(Texts.getText("miAddLocation"));
-		MenuItem miRemoveLocation = new MenuItem(Texts.getText("miRemoveLocation"));
+		MenuItem miRemoveLocation = new MenuItem(
+				Texts.getText("miRemoveLocation"));
 		MenuItem miDeleteFile = new MenuItem(Texts.getText("miDeleteFile"));
 		MenuItem miRestoreFile = new MenuItem(Texts.getText("miKeepFile"));
 		menu.getItems().add(miNewLocation);
@@ -311,24 +358,31 @@ public class MainWindowCtrl {
 			TreeItem<NavTreeEntry> selectedItem = ttvRepository
 					.getSelectionModel().getSelectedItem();
 			miNewLocation.setDisable((tiLocations != selectedItem));
-			boolean isLocation = selectedItem != null && selectedItem.getValue().getType() == NavEntryType.LOCATION;
+			boolean isLocation = selectedItem != null
+					&& selectedItem.getValue().getType() == NavEntryType.LOCATION;
 			miRemoveLocation.setDisable(!isLocation);
-			boolean isMarkedToDeleteFile = selectedItem != null && selectedItem.getValue().getType() == NavEntryType.FILE && selectedItem.getValue().getImageFile().isFlaggedToDelete();
-			boolean isExistingFileFile = selectedItem != null && selectedItem.getValue().getType() == NavEntryType.FILE && !selectedItem.getValue().getImageFile().isFlaggedToDelete();
+			boolean isMarkedToDeleteFile = selectedItem != null
+					&& selectedItem.getValue().getType() == NavEntryType.FILE
+					&& selectedItem.getValue().getImageFile()
+							.isFlaggedToDelete();
+			boolean isExistingFileFile = selectedItem != null
+					&& selectedItem.getValue().getType() == NavEntryType.FILE
+					&& !selectedItem.getValue().getImageFile()
+							.isFlaggedToDelete();
 			miRestoreFile.setDisable(!isMarkedToDeleteFile);
 			miDeleteFile.setDisable(!isExistingFileFile);
-			
+
 		});
 
 		miRemoveLocation.setOnAction((ActionEvent e) -> {
 			// TODO: confirm dialog
-			TreeItem<NavTreeEntry> selectedItem = ttvRepository
-					.getSelectionModel().getSelectedItem();
-			selectedItem.getParent().getChildren().remove(selectedItem);
-			Location loc = selectedItem.getValue().getLocation();
-			loc.setValid(false);
-			getProvider().mergeLocation(loc);
-		});
+				TreeItem<NavTreeEntry> selectedItem = ttvRepository
+						.getSelectionModel().getSelectedItem();
+				selectedItem.getParent().getChildren().remove(selectedItem);
+				Location loc = selectedItem.getValue().getLocation();
+				loc.setValid(false);
+				getProvider().mergeLocation(loc);
+			});
 
 		miNewLocation.setOnAction((ActionEvent e) -> {
 			DirectoryChooser diLocation = new DirectoryChooser();
@@ -343,7 +397,7 @@ public class MainWindowCtrl {
 				addLocationToTree(tiLocations, loc);
 			}
 		});
-		
+
 		miDeleteFile.setOnAction((ActionEvent e) -> {
 			TreeItem<NavTreeEntry> selectedItem = ttvRepository
 					.getSelectionModel().getSelectedItem();
@@ -355,23 +409,23 @@ public class MainWindowCtrl {
 					.getSelectionModel().getSelectedItem();
 			restoreFileByTreeItem(selectedItem);
 		});
-		
-		
+
 	}
 
 	private void initWorker() {
-		Runnable r = new Runnable(){
+		Runnable r = new Runnable() {
 			private LocationReaderWorker currentWork;
 
-			public void run(){
-				while (running){
-					logger.trace("Task thread checking for work. Current: " + currentWork+", queue: " + workerQueue.size());
-					if (null == currentWork || currentWork.isFinished()){
+			public void run() {
+				while (running) {
+					logger.trace("Task thread checking for work. Current: "
+							+ currentWork + ", queue: " + workerQueue.size());
+					if (null == currentWork || currentWork.isFinished()) {
 						LocationReaderWorker work;
 						synchronized (workerThreadSyncObject) {
-							work=workerQueue.poll();
+							work = workerQueue.poll();
 						}
-						if (null != work){
+						if (null != work) {
 							currentWork = work;
 							new Thread(work).start();
 						}
@@ -380,7 +434,7 @@ public class MainWindowCtrl {
 						try {
 							workerThreadSyncObject.wait(WAIT_TIME);
 						} catch (InterruptedException e) {
-						}						
+						}
 					}
 				}
 				synchronized (workerThreadSyncObject) {
@@ -393,35 +447,76 @@ public class MainWindowCtrl {
 
 	private void nteSelected(TreeItem<NavTreeEntry> newValue) {
 		logger.debug("NTE selected: " + newValue);
-		if (newValue != null && newValue.getValue() != null && newValue.getValue().getType() == NavEntryType.FILE){
+		if (newValue != null && newValue.getValue() != null
+				&& newValue.getValue().getType() == NavEntryType.FILE) {
 			displayedEntryProperty.set(newValue);
-		}else{
+		} else {
 			displayedEntryProperty.set(null);
 		}
 	}
 
 	private void setImage(File file) {
-		String name="";
+		String name = "";
 		Image image = null;
-		if (null != file){
+		if (null != file) {
 			name = file.getName();
-			if (file.exists()){
+			if (file.exists()) {
 				try {
 					image = new Image(new FileInputStream(file));
 					ivMainImage.setImage(image);
 					double height;
-					double ratio=image.getWidth()/image.getHeight();
+					double ratio = image.getWidth() / image.getHeight();
 					height = ivMainImage.getFitWidth() * ratio;
 					ivMainImage.setFitHeight(height);
 				} catch (FileNotFoundException e) {
 					image = getBrokenImage();
 				}
-			}else{
+			} else {
 				image = getBrokenImage();
 			}
 		}
 		ivMainImage.setImage(image);
 		txtCurrentFileName.setText(name);
+		long msStart = System.currentTimeMillis();
+		String date="";
+		String size="";
+		String width ="";
+		String height="";
+		try {
+			ImageMetaData md = ExifExtractor.extractMetaData(file);
+			if (null != md) {
+				if (null != md.getDateTimeOriginal()) {
+					DateTimeFormatter formatter = DateTimeFormatter
+							.ofLocalizedDateTime(FormatStyle.MEDIUM);
+					date = formatter.format(md.getDateTimeOriginal());
+				}
+				long bytes = md.getSizeBytes();
+				if (bytes > 1024 * 1024) {
+					double mb = (double)bytes / (1024 * 1024);
+					size = String.format("%.2f", mb) + " MB";
+				} else if (bytes > 1024) {
+					double kb = (double)bytes / (1024);
+					size = String.format("%.2f", kb) + " KB";
+				} else {
+					size = "" + bytes;
+				}
+				if (md.getWidth() > 0) {
+					width = "" + md.getWidth();
+				}
+				if (md.getHeight() > 0) {
+					height = "" + md.getHeight();
+				}
+			}
+		} catch (ImageReadException | IOException e) {
+			logger.error("Could not read EXIF information of file " + file, e);
+		}
+		long msEnd = System.currentTimeMillis();
+		logger.debug("Duration to extract exif data: "
+				+ (msEnd - msStart) + " ms");
+		tfImageDate.setText(date);
+		tfImageSize.setText(size);
+		tfImageHeight.setText(height);
+		tfImageWidth.setText(width);
 	}
 
 	public void terminate() {

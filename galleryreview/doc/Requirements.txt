@@ -16,4 +16,4 @@
    
    Next:
    - Fix version bug when restoring and deleting files
-   - Tooltip: Complete path for file tree items#
+   - Add support to commit deletion
