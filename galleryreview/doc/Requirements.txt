@@ -15,5 +15,5 @@
    
    
    Next:
-   - Fix version bug when restoring and deleting files
    - Add support to commit deletion
+   - Fix version bug when restoring and deleting files

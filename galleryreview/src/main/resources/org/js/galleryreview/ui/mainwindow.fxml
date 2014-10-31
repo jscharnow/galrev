@@ -7,7 +7,7 @@
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.layout.BorderPane?>
 
-<BorderPane xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.js.galleryreview.ui.MainWindowCtrl">
+<BorderPane fx:id="mainPane" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.js.galleryreview.ui.MainWindowCtrl">
    <left>
       <VBox>
          <children>
@@ -92,12 +92,8 @@
               <menus>
                 <Menu mnemonicParsing="false" text="File">
                   <items>
-                    <MenuItem mnemonicParsing="false" text="Close" />
-                  </items>
-                </Menu>
-                <Menu mnemonicParsing="false" text="Edit">
-                  <items>
-                    <MenuItem mnemonicParsing="false" text="Delete" />
+                        <MenuItem mnemonicParsing="false" onAction="#commitDelete" text="%mnu.commitDelete" />
+                    <MenuItem mnemonicParsing="false" onAction="#closeSelected" text="%mnu.terminateApplication" />
                   </items>
                 </Menu>
                 <Menu mnemonicParsing="false" text="Help">

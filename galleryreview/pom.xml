@@ -63,5 +63,10 @@
 			<artifactId>sanselan</artifactId>
 			<version>0.97-incubator</version>
 		</dependency>
+		<dependency>
+			<groupId>org.controlsfx</groupId>
+			<artifactId>controlsfx</artifactId>
+			<version>8.20.7</version>
+		</dependency>
 	</dependencies>
 </project>

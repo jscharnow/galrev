@@ -32,12 +32,18 @@ import javafx.scene.control.cell.TreeItemPropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.text.Text;
 import javafx.stage.DirectoryChooser;
+import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 import javafx.util.Callback;
 
 import org.apache.sanselan.ImageReadException;
+import org.controlsfx.control.action.Action;
+import org.controlsfx.dialog.Dialog;
+import org.controlsfx.dialog.Dialogs;
+import org.js.galleryreview.GalRevApplication;
 import org.js.galleryreview.model.entities.ImageFile;
 import org.js.galleryreview.model.entities.Location;
 import org.js.galleryreview.model.entities.Review;
@@ -52,6 +58,7 @@ import org.js.galleryreview.ui.work.LocationReaderWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("deprecation")
 public class MainWindowCtrl {
 
 	public static InputStream getFXMLStream() {
@@ -59,6 +66,9 @@ public class MainWindowCtrl {
 	}
 
 	private static final int WAIT_TIME = 5000;
+	
+	@FXML
+	private BorderPane mainPane;
 
 	@FXML
 	private TreeTableView<NavTreeEntry> ttvRepository;
@@ -527,6 +537,64 @@ public class MainWindowCtrl {
 				workerThreadSyncObject.wait(5000);
 			}
 		} catch (InterruptedException e) {
+		}
+	}
+
+
+	@FXML
+	void closeSelected(ActionEvent event) {
+		terminateApplication();
+	}
+
+	/**
+	 * Terminate application and commits deletion if requested.
+	 */
+	private void terminateApplication() {
+		Stage stage = getStage();
+		Action response = Dialogs.create()
+				.owner(stage)
+				.title(Texts.getText("dialog.titleClose"))
+				.message(Texts.getText("dialog.questionClose"))
+				.showConfirm();
+		if (Dialog.ACTION_YES == response){
+			commitDelete(null);
+			
+			GalRevApplication.terminate();
+		}
+	}
+
+
+	@FXML
+	void commitDelete(ActionEvent event) {
+		Action response;
+		response = Dialogs.create()
+				.owner(getStage())
+				.title(Texts.getText("dialog.titleConfirmDeletion"))
+				.message(Texts.getText("dialog.questionDeleteMarked"))
+				.showConfirm();
+		if (Dialog.ACTION_YES == response){
+			doCommitDeletion();
+		}
+	}
+
+	private Stage getStage() {
+		Stage stage = (Stage) mainPane.getScene().getWindow();
+		return stage;
+	}
+
+	private void doCommitDeletion() {
+		for (TreeItem<NavTreeEntry> delItem : tiToDelete.getChildren()) {
+			ImageFile imageFile = delItem.getValue().getImageFile();
+			File f = new File(imageFile.getPath());
+			imageFile.setDeleted(true);
+			getProvider().mergeFile(imageFile);
+			boolean success = f.delete();
+			if (!success) {
+				Dialogs.create().owner(getStage())
+						.title(Texts.getText("dialog.titleErrorDelete"))
+						.message(Texts.getText("dialog.errorDeleteFile", f.getAbsolutePath()))
+						.showConfirm();
+			}
 		}
 	}
 

@@ -20,17 +20,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Hello world!
+ * Main class for Gallery Review Application
  *
  */
-public class App extends Application {
+public class GalRevApplication extends Application {
 
 	private static final String APP_DATA_DIR_NAME = "galrev";
 	private static final String DB_NAME = "galrev";
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
 	public static void main(String[] args) {
-		Application.launch(App.class, args);
+		Application.launch(GalRevApplication.class, args);
 	}
 
 	@Override
@@ -94,5 +94,9 @@ public class App extends Application {
 			startReview.setStartDate(new Date());
 			prov.mergeReview(startReview);
 		}
+	}
+
+	public static void terminate() {
+		System.exit(0);
 	}
 }
